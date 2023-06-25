@@ -4,9 +4,7 @@ import fs from 'fs';
 import { processVideo } from './processVideo.js';
 import { updateVideosProcessed, insertProcessIdkLmaooo, getProcessCount } from './database.js';
 import { getAudioDurationInSeconds } from 'get-audio-duration';
-
-const BOT_TOKEN = "";
-const DEV_TOKEN = "";
+import { BOT_TOKEN, DEV_TOKEN } from './config.js';
 
 const ALLOWED_EXTENSIONS = ["mp3", "wav", "flac", "ogg", "m4a"];
 
