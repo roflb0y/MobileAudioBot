@@ -1,4 +1,4 @@
-import { ActivityType, Client, IntentsBitField } from 'discord.js';
+import { ActivityType, Client, IntentsBitField, DiscordAPIError } from 'discord.js';
 import request from 'request';
 import fs from 'fs';
 import { processVideo } from './processVideo.js';
@@ -31,6 +31,10 @@ client.on('ready', (c) => {
     updateRPC();
     setInterval(() => updateRPC(), 60000);
 });
+
+client.on("error", error => {
+    console.error(error);
+})
 
 client.on('messageCreate', (message) => {
     if (message.author.bot) return false;
@@ -94,7 +98,7 @@ client.on('messageCreate', (message) => {
                                 };
                             });
                         }).then(() => {
-                            console.log('uploading to discord\n');
+                            console.log(`uploading to discord. ${new Date().toString()}\n`);
                             msg.reply({files: replyfiles, "allowedMentions": { "users" : []}})
                                 .then(() => {
                                     replyfiles.forEach((item) => { 
@@ -109,6 +113,24 @@ client.on('messageCreate', (message) => {
                                     if (index !== -1) {
                                         processing_currently.splice(index, 1);
                                     }
+                                })
+                                .catch(error => {
+                                    console.log("Missing permissions. Deleting everything", error);
+                                    msg.reply("Failed to upload files. Check channel and bot permissions.")
+                                    .then(() => {
+                                        replyfiles.forEach((item) => { 
+                                            try { fs.unlinkSync(item) } 
+                                            catch { }
+                                            }
+                                        );
+                                        replyfiles = [];
+                                        audioFiles = [];
+    
+                                        let index = processing_currently.indexOf(msg.id);
+                                        if (index !== -1) {
+                                            processing_currently.splice(index, 1);
+                                        }
+                                    });
                                 });
                         })
                     };
