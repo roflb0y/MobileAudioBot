@@ -1,4 +1,4 @@
-import { ActivityType, Client, IntentsBitField, DiscordAPIError } from 'discord.js';
+import { ActivityType, Client, IntentsBitField} from 'discord.js';
 import request from 'request';
 import fs from 'fs';
 import { processVideo } from './processVideo.js';
@@ -26,15 +26,14 @@ function updateRPC() {
         });
 }
 
+process.on("unhandledRejection", error => {console.error("unhandled rejection aaaaa", error)});
+process.on("uncaughtException", error => {console.error("aaadfasddasdasfdsaf", error)});
+
 client.on('ready', (c) => {
     console.log(`Logged as ${client.user.tag}`);
     updateRPC();
     setInterval(() => updateRPC(), 60000);
 });
-
-client.on("error", error => {
-    console.error(error);
-})
 
 client.on('messageCreate', (message) => {
     if (message.author.bot) return false;
@@ -68,7 +67,6 @@ client.on('messageCreate', (message) => {
                                             .on('finish', resolve)
                                             .on('error', (error) => reject(new Error(error)))
                                     })
-
                                     .then(() => {
                                         let startTime = new Date()
                                         console.log(`downloaded ${item.name}`);
@@ -95,6 +93,7 @@ client.on('messageCreate', (message) => {
                                             })
                                         })
                                     });
+                                    
                                 };
                             });
                         }).then(() => {
@@ -117,6 +116,7 @@ client.on('messageCreate', (message) => {
                                 .catch(error => {
                                     console.log("Missing permissions. Deleting everything", error);
                                     msg.reply("Failed to upload files. Check channel and bot permissions.")
+                                    .catch(error => { console.log("пхаха бля ктото запретил отправлять сообщения впринципе))") })
                                     .then(() => {
                                         replyfiles.forEach((item) => { 
                                             try { fs.unlinkSync(item) } 
