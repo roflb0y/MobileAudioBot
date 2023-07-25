@@ -142,7 +142,6 @@ client.on('messageCreate', (message) => {
 });
 
 client.on(Events.InteractionCreate, interaction => {
-    console.log(interaction);
     if(!interaction.isChatInputCommand()) return;
     if(interaction.commandName === "help") {
         getLangFile("en").then((langFile) => {
