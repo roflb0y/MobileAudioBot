@@ -21,8 +21,8 @@ export function updateVideosProcessed() {
     });
 };
 
-export function insertProcessIdkLmaooo(filename, time) {
+export function insertProcessIdkLmaooo(fileid, time) {
     db.serialize(() => {
-        db.run("INSERT INTO processes VALUES (?, ?, ?)", filename, time.toString(), new Date().toString())
+        db.run("INSERT INTO processes VALUES (?, ?, ?)", fileid, time.toString(), new Date().toString())
     });
 };
