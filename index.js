@@ -32,7 +32,7 @@ process.on("uncaughtException", error => {console.error("aaadfasddasdasfdsaf", e
 
 client.on('ready', (c) => {
     console.log(`Logged as ${client.user.tag}`);
-    try {client.user.setPresence({activities: [{ name: `bot is verificating...`, type: ActivityType.Playing }], status: 'online'}) }
+    try {client.user.setPresence({activities: [{ name: `WE'RE VERIFIED LESSSGOO`, type: ActivityType.Playing }], status: 'online'}) }
     catch { };
 
     const helpCommand = new SlashCommandBuilder()
@@ -142,6 +142,7 @@ client.on('messageCreate', (message) => {
 });
 
 client.on(Events.InteractionCreate, interaction => {
+    console.log(interaction);
     if(!interaction.isChatInputCommand()) return;
     if(interaction.commandName === "help") {
         getLangFile("en").then((langFile) => {
