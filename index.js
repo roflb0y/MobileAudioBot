@@ -1,13 +1,9 @@
 import { ActivityType, Client, IntentsBitField, SlashCommandBuilder, Events, EmbedBuilder, ActionRowBuilder, ButtonStyle, ComponentType, ButtonInteraction } from 'discord.js';
-import request from 'request';
-import fs from 'fs';
-import { processVideo } from './processVideo.js';
-import { updateVideosProcessed, insertProcessIdkLmaooo, getProcessCount } from './database.js';
-import { getAudioDurationInSeconds } from 'get-audio-duration';
+import * as converter from './processVideo.js';
+import { downloadFiles } from './downloadFiles.js';
+import { getProcessCount } from './database.js';
 import { BOT_TOKEN, DEV_TOKEN } from './config.js';
-import { deleteFiles, getLangFile } from "./utils.js"
-
-const ALLOWED_EXTENSIONS = ["mp3", "wav", "flac", "ogg", "m4a"];
+import * as utils from "./utils.js"
 
 let processing_currently = [];
 
@@ -27,125 +23,79 @@ function updateRPC() {
         });
 }
 
-process.on("unhandledRejection", error => {console.error("unhandled rejection aaaaa", error.toString())});
-process.on("uncaughtException", error => {console.error("aaadfasddasdasfdsaf", error.toString())});
+//process.on("unhandledRejection", error => {console.log("unhandled rejection aaaaa", error.toString())});
+//process.on("uncaughtException", error => {console.log("aaadfasddasdasfdsaf", error.toString())});
 
 client.on('ready', (c) => {
     console.log(`Logged as ${client.user.tag}`);
-    try {client.user.setPresence({activities: [{ name: `WE'RE VERIFIED LESSSGOO`, type: ActivityType.Playing }], status: 'online'}) }
-    catch { };
 
     const helpCommand = new SlashCommandBuilder()
         .setName("help")
         .setDescription("Bot help");
 
     client.application.commands.create(helpCommand.toJSON());
-    //updateRPC();
-    //setInterval(() => updateRPC(), 60000);
+    updateRPC();
+    setInterval(() => updateRPC(), 60000);
 });
 
-client.on('messageCreate', (message) => {
+client.on('messageCreate', async (message) => {
     if (message.author.bot) return false;
     if (message.content.includes("@here") || message.content.includes("@everyone") || message.type == "REPLY") return false;
 
     //console.log(message);
-    if (message.mentions.has(client.user.id)) {
-        if (message.reference) {
-            message.fetchReference().then(
-                async function(msg) {
-                    if (processing_currently.includes(msg.id)) { 
-                        await message.reply("These files are currently being processed");
-                        return;
-                    };
+    if (message.mentions.has(client.user.id) && message.reference) {
+        const msg = await message.fetchReference();
+        if (processing_currently.includes(msg.id)) { 
+            await message.reply("These files are currently being processed");
+            return;
+        };
+        processing_currently.push(msg.id);
 
-                    if (msg.attachments) {
-                        let replyfiles = [];
-                        let audioFiles = [];
+        if (msg.attachments) {
+            const audioFiles = await utils.getAudioFiles(msg.attachments);
+            const files = await downloadFiles(audioFiles);
+            let filteredFiles = files.filter((item) => item.duration < 900);
 
-                        new Promise((resolve, reject) => {
-                            msg.attachments.forEach(item => {
-                                let fileExt = item.name.split(".").pop();
+            if (filteredFiles.length < files.length) {
+                await msg.reply(`Only files up to 15 minutes long are supported. ${filteredFiles.length > 0 ? "Not all files will be converted." : ""}`);
+            }
 
-                                if (ALLOWED_EXTENSIONS.includes(fileExt)) {
-                                    if (!processing_currently.includes(msg.id)) { processing_currently.push(msg.id); };
-                                    let saveFilename = `${item.id}.${fileExt}`;
+            if (filteredFiles.length === 0) {
+                console.log("All files are longer than 15 minutes so deleting");
+                utils.deleteFiles(files.map((item) => item.filename));
+                return;
+            }
+            
+            const videoFilenames = await converter.processVideos(filteredFiles);
 
-                                    new Promise((resolve, reject) => {
-                                        request.get(item.url)
-                                            .pipe(fs.createWriteStream(saveFilename))
-                                            .on('finish', resolve)
-                                            .on('error', (error) => reject(new Error(error)))
-                                    })
-                                    .then(() => {
-                                        let startTime = new Date()
-                                        console.log(`downloaded ${item.name}`);
-
-                                        getAudioDurationInSeconds(saveFilename).then((duration) => {
-                                            if (duration >= 900) { fs.unlinkSync(saveFilename); return };
-                                            if (duration < 3) { duration = 3 };
-
-                                            audioFiles.push(saveFilename);
-
-                                            processVideo(saveFilename, item.name, msg.author.username, duration)
-                                                .then(() => {
-                                                    console.log(`${item.name} video processed`);
-                                                    replyfiles.push(`${saveFilename}.mp4`);
-
-                                                    let processTime = new Date - startTime
-                                                    processTime = processTime/1000
-                                                    insertProcessIdkLmaooo(item.id, processTime);
-                                                    updateVideosProcessed();
-
-                                                    if (replyfiles.length === audioFiles.length) { //потому што джаваскрипт либо я хз как по другому скорее всего второе
-                                                        resolve();
-                                                    }
-                                            })
-                                        })
-                                    });
-                                    
-                                };
-                            });
-                        }).then(() => {
-                            console.log(`uploading to discord. ${new Date().toString()}\n`);
-                            msg.reply({files: replyfiles, "allowedMentions": { "users" : []}})
-                                .then(() => {
-                                    deleteFiles(replyfiles);
-                                    replyfiles = [];
-                                    audioFiles = [];
-
-                                    let index = processing_currently.indexOf(msg.id);
-                                    if (index !== -1) {
-                                        processing_currently.splice(index, 1);
-                                    }
-                                })
-                                .catch(error => {
-                                    console.log("Missing permissions. Deleting everything", error);
-                                    msg.reply("Failed to upload files. Check channel and bot permissions.")
-                                    .catch(error => { console.log("пхаха бля ктото запретил отправлять сообщения впринципе))") })
-                                    .then(() => {
-                                        deleteFiles(replyfiles);
-                                        replyfiles = [];
-                                        audioFiles = [];
-    
-                                        let index = processing_currently.indexOf(msg.id);
-                                        if (index !== -1) {
-                                            processing_currently.splice(index, 1);
-                                        }
-                                    });
-                                });
-                        })
-                    };
+            console.log(`uploading to discord. ${new Date().toString()}\n`);
+            try {
+                await msg.reply({files: videoFilenames, "allowedMentions": { "users" : []}});
+            }
+            catch (error) {
+                try {
+                    console.log("Missing permissions.", error);
+                    await msg.reply("Failed to upload files. Check channel and bot permissions.")
+                } catch {
+                    console.log("пхаха бля ктото запретил отправлять сообщения впринципе))")
                 }
-            );
+            }
+
+            utils.deleteFiles(videoFilenames);
+            utils.deleteFiles(files.map((item) => item.filename));
+
+            let index = processing_currently.indexOf(msg.id);
+            if (index !== -1) {
+                processing_currently.splice(index, 1);
+            }
         };
     };
 });
 
 client.on(Events.InteractionCreate, interaction => {
-    console.log(interaction);
     if(!interaction.isChatInputCommand()) return;
     if(interaction.commandName === "help") {
-        getLangFile("en").then((langFile) => {
+        utils.getLangFile("en").then((langFile) => {
 
             const replyEmbed = new EmbedBuilder()
                 .setColor(0x7289da)
@@ -174,4 +124,4 @@ client.on(Events.InteractionCreate, interaction => {
     }
 });
 
-client.login(BOT_TOKEN);
+client.login(DEV_TOKEN);
