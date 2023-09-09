@@ -23,8 +23,8 @@ function updateRPC() {
         });
 }
 
-//process.on("unhandledRejection", error => {console.log("unhandled rejection aaaaa", error.toString())});
-//process.on("uncaughtException", error => {console.log("aaadfasddasdasfdsaf", error.toString())});
+process.on("unhandledRejection", error => {console.log("unhandled rejection aaaaa", error.toString())});
+process.on("uncaughtException", error => {console.log("aaadfasddasdasfdsaf", error.toString())});
 
 client.on('ready', (c) => {
     console.log(`Logged as ${client.user.tag}`);
