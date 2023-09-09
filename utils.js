@@ -22,13 +22,9 @@ export function deleteFiles(files) {
     );
 };
 
-export function getLangFile(lang) {
-    return new Promise((resolve, reject) => {
-        fs.readFile(`./langs/${lang}.json`, 'utf-8', (err, data) => {
-            try { resolve(JSON.parse(data)) } //js is hard
-            catch { reject() }
-        })
-    });
+export function getLang(locale) {
+    const lang = fs.readFileSync(`./langs/${locale}.json`, 'utf-8');
+    return JSON.parse(lang);
 };
 
 export async function getAudioFiles(files) {

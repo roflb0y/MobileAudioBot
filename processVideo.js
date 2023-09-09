@@ -39,7 +39,9 @@ async function processVideo(
                 log.error('stderr: ' + stderr);
             })
             .on('end', () => {
-                insertProcessIdkLmaooo("", (Date.now() - start_time).toString());
+                const processTime = (Date.now() - start_time)/1000;
+                log.process(`${originalFilename} processed in ${processTime}s`);
+                insertProcessIdkLmaooo("", processTime);
                 updateVideosProcessed();
                 fs.unlinkSync(audioFilename);
                 resolve(`${audioFilename}.mp4`);
@@ -56,7 +58,6 @@ export async function processVideos(files) {
                 if (item.duration < 3) { item.duration = 3 };
 
                 const videoFilename = await processVideo(item.filename, item.title, item.duration);
-                log.process(`${item.title} processed`);
                 resolve(videoFilename);
             });
             workers.push(worker);

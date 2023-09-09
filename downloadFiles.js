@@ -2,6 +2,7 @@ import request from 'request';
 import fs from 'fs';
 import { getAudioDurationInSeconds } from 'get-audio-duration';
 import * as log from "./logger.js";
+import * as utils from "./utils.js"
 
 //process.on("unhandledRejection", error => {console.log("jopa", error.toString())});
 //process.on("uncaughtException", error => {console.log("ponos", error.toString())});

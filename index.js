@@ -1,10 +1,15 @@
-import { ActivityType, Client, IntentsBitField, SlashCommandBuilder, Events, EmbedBuilder, ActionRowBuilder, ButtonStyle, ComponentType, ButtonInteraction } from 'discord.js';
+import { ActivityType, Client, IntentsBitField, Events, EmbedBuilder, PermissionsBitField } from 'discord.js';
 import * as converter from './processVideo.js';
 import { downloadFiles } from './downloadFiles.js';
-import { getProcessCount } from './database.js';
-import { BOT_TOKEN, DEV_TOKEN } from './config.js';
+import * as db from './database.js';
+import * as config from './config.js';
 import * as utils from "./utils.js";
 import * as log from "./logger.js";
+
+import * as commands from "./commands.js";
+
+process.on("unhandledRejection", error => {log.error(`Unhandled rejection. ${error.toString()}`)});
+process.on("uncaughtException", error => {log.error(`Uncaught exception. ${error.toString()}`)});
 
 let processing_currently = [];
 
@@ -17,40 +22,58 @@ const client = new Client({
 });
 
 function updateRPC() {
-    getProcessCount()
+    db.getProcessCount()
         .then((processCount) => {
             try {
-                client.user.setPresence({activities: [{ name: `Processed ${processCount} files!`, type: ActivityType.Playing }], status: 'online'});
-                log.info(`Presence set to: Processed ${processCount} files!`);
+                let presence = `Processed ${processCount} files!`;
+                if (!client.user.presence.activities[0] || presence !== client.user.presence.activities[0].name) {
+                    presence = "/config ADDED";
+                    client.user.setPresence({activities: [{ name: presence, type: ActivityType.Playing }], status: 'online'});
+                    log.info(`Presence set to: ${presence}`);
+                }
             }
-            catch { };
+            catch (error) {
+                log.error(`Failed to update presence. ${error}`);
+            };
         });
 }
-
-process.on("unhandledRejection", error => {log.error(`Unhandled rejection. ${error.toString()}`)});
-process.on("uncaughtException", error => {log.error(`Uncaught exception. ${error.toString()}`)});
 
 client.on('ready', (c) => {
     log.info(`Logged as ${client.user.tag}`);
 
-    const helpCommand = new SlashCommandBuilder()
-        .setName("help")
-        .setDescription("Bot help");
+    client.application.commands.create(commands.configCommand.toJSON());
+    client.application.commands.create(commands.helpCommand.toJSON());
+    log.info("Registered commands");
 
-    client.application.commands.create(helpCommand.toJSON());
     updateRPC();
     setInterval(() => updateRPC(), 60000);
 });
 
 client.on('messageCreate', async (message) => {
+    await db.addServer(message.guild.id);
+    await db.addChannel(message.channel.id);
+
     if (message.author.bot) return false;
     if (message.content.includes("@here") || message.content.includes("@everyone") || message.type == "REPLY") return false;
+    if(!message.channel.permissionsFor(client.user).has(PermissionsBitField.Flags.SendMessages)) return false;
+
+    const autoconvert = await db.isAutoconversionEnabled(message.channel.id);
 
     //console.log(message);
-    if (message.mentions.has(client.user.id) && message.reference) {
-        const msg = await message.fetchReference();
+    if ((message.mentions.has(client.user.id) && message.reference) || (autoconvert && message.attachments.size > 0)) {
+        const lang = await db.getLang(message.guild.id);
+
+        if(!message.channel.permissionsFor(client.user).has(PermissionsBitField.Flags.AttachFiles)) {
+            await message.reply(lang.cant_upload);
+            return false;
+        }
+
+        let msg;
+        if (autoconvert && !message.mentions.has(client.user.id) && !message.reference) msg = message;
+        else msg = await message.fetchReference();
+
         if (processing_currently.includes(msg.id)) { 
-            await message.reply("These files are currently being processed");
+            await message.reply(lang.currently_processing);
             return;
         };
         processing_currently.push(msg.id);
@@ -62,12 +85,16 @@ client.on('messageCreate', async (message) => {
 
             if (filteredFiles.length < files.length) {
                 try {
-                    await msg.reply(`Only files up to 15 minutes long are supported. ${filteredFiles.length > 0 ? "Not all files will be converted." : ""}`);
+                    await msg.reply(`${lang.long_files[0]} ${filteredFiles.length > 0 ? lang.long_files[1] : ""}`);
                 } catch { }
             }
 
             if (filteredFiles.length === 0) {
-                log.info("All files are longer than 15 minutes so deleting\n");
+                log.info("All files are longer than 15 minutes or unsopported format so deleting\n");
+                let index = processing_currently.indexOf(msg.id);
+                if (index !== -1) {
+                    processing_currently.splice(index, 1);
+                }
                 utils.deleteFiles(files.map((item) => item.filename));
                 return;
             }
@@ -81,7 +108,7 @@ client.on('messageCreate', async (message) => {
             catch (error) {
                 try {
                     log.error("Missing permissions.", error);
-                    await msg.reply("Failed to upload files. Check channel and bot permissions.");
+                    await msg.reply(lang.upload_failed);
                 } catch {
                     log.error("пхаха бля ктото запретил отправлять сообщения впринципе))");
                 }
@@ -98,36 +125,49 @@ client.on('messageCreate', async (message) => {
     };
 });
 
-client.on(Events.InteractionCreate, interaction => {
-    if(!interaction.isChatInputCommand()) return;
-    if(interaction.commandName === "help") {
-        utils.getLangFile("en").then((langFile) => {
+client.on(Events.InteractionCreate, async interaction => {
+    await db.addServer(interaction.guild.id);
+    await db.addChannel(interaction.channel.id);
 
-            const replyEmbed = new EmbedBuilder()
-                .setColor(0x7289da)
-                .addFields({name: "Help", value: langFile["help"]})
-                .setImage("https://i.imgur.com/sncs8FP.jpeg");
-    
-            const actionRow = new ActionRowBuilder({
-                components: [
-                    {
-                        label: "Русский язык",
-                        style: ButtonStyle.Primary,
-                        type: ComponentType.Button,
-                        custom_id: "helplang_ru"
-                    }
-                ]
-            });
+    if(!interaction.isChatInputCommand()) return;
+
+    const lang = await db.getLang(interaction.guild.id);
+    if(interaction.commandName === "help") {
+        const replyEmbed = new EmbedBuilder()
+            .setColor(0x7289da)
+            .addFields({name: "Help", value: lang.help})
+            .setImage("https://i.imgur.com/sncs8FP.jpeg");
             
-            interaction.reply(
-                {
-                    embeds: [replyEmbed],
-                }
-            )
-                .catch();
-        });
-        
+        interaction.reply(
+            {
+                embeds: [replyEmbed],
+            }
+        )
+            .catch(() => { });
+    }
+
+    if(interaction.commandName === "config") {
+        if(!interaction.member.permissionsIn(interaction.channel).has(PermissionsBitField.Flags.Administrator)) {
+            await interaction.reply("нет прав");
+            return;
+        }
+
+        const languageOption = interaction.options.get("language");
+        const autoconversionOption = interaction.options.get("autoconversion");
+
+        let result = "New settings:";
+
+        if (languageOption) { 
+            db.setLanguage(interaction.guild.id, languageOption.value);
+            result += `\nLanguage: ${languageOption.value}`;
+        };
+        if (autoconversionOption) {
+            db.setAutoconversion(interaction.channel.id, autoconversionOption.value);
+            result += `\nAutoconversion: ${autoconversionOption.value}`;
+        };
+
+        await interaction.reply(result);
     }
 });
 
-client.login(BOT_TOKEN);
+client.login(config.BOT_TOKEN);
