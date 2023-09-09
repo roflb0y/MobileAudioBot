@@ -1,6 +1,7 @@
 import request from 'request';
 import fs from 'fs';
 import { getAudioDurationInSeconds } from 'get-audio-duration';
+import * as log from "./logger.js";
 
 //process.on("unhandledRejection", error => {console.log("jopa", error.toString())});
 //process.on("uncaughtException", error => {console.log("ponos", error.toString())});
@@ -17,7 +18,7 @@ export async function downloadFiles(files) {
                 request.get(item.url)
                     .pipe(fs.createWriteStream(saveFilename))
                     .on('finish', async () => { 
-                        console.log(`${item.name} downloaded`); 
+                        log.process(`${item.name} downloaded`); 
                         const duration = await getAudioDurationInSeconds(saveFilename);
                         resolve({"filename": saveFilename, "title": item.name, "duration": duration})
                     })

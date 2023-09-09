@@ -3,7 +3,8 @@ import * as converter from './processVideo.js';
 import { downloadFiles } from './downloadFiles.js';
 import { getProcessCount } from './database.js';
 import { BOT_TOKEN, DEV_TOKEN } from './config.js';
-import * as utils from "./utils.js"
+import * as utils from "./utils.js";
+import * as log from "./logger.js";
 
 let processing_currently = [];
 
@@ -18,16 +19,19 @@ const client = new Client({
 function updateRPC() {
     getProcessCount()
         .then((processCount) => {
-            try {client.user.setPresence({activities: [{ name: `Processed ${processCount} files!`, type: ActivityType.Playing }], status: 'online'}) }
+            try {
+                client.user.setPresence({activities: [{ name: `Processed ${processCount} files!`, type: ActivityType.Playing }], status: 'online'});
+                log.info(`Presence set to: Processed ${processCount} files!`);
+            }
             catch { };
         });
 }
 
-process.on("unhandledRejection", error => {console.log("unhandled rejection aaaaa", error.toString())});
-process.on("uncaughtException", error => {console.log("aaadfasddasdasfdsaf", error.toString())});
+process.on("unhandledRejection", error => {log.error(`Unhandled rejection. ${error.toString()}`)});
+process.on("uncaughtException", error => {log.error(`Uncaught exception. ${error.toString()}`)});
 
 client.on('ready', (c) => {
-    console.log(`Logged as ${client.user.tag}`);
+    log.info(`Logged as ${client.user.tag}`);
 
     const helpCommand = new SlashCommandBuilder()
         .setName("help")
@@ -57,27 +61,29 @@ client.on('messageCreate', async (message) => {
             let filteredFiles = files.filter((item) => item.duration < 900);
 
             if (filteredFiles.length < files.length) {
-                await msg.reply(`Only files up to 15 minutes long are supported. ${filteredFiles.length > 0 ? "Not all files will be converted." : ""}`);
+                try {
+                    await msg.reply(`Only files up to 15 minutes long are supported. ${filteredFiles.length > 0 ? "Not all files will be converted." : ""}`);
+                } catch { }
             }
 
             if (filteredFiles.length === 0) {
-                console.log("All files are longer than 15 minutes so deleting");
+                log.info("All files are longer than 15 minutes so deleting\n");
                 utils.deleteFiles(files.map((item) => item.filename));
                 return;
             }
             
             const videoFilenames = await converter.processVideos(filteredFiles);
-
-            console.log(`uploading to discord. ${new Date().toString()}\n`);
+            
             try {
                 await msg.reply({files: videoFilenames, "allowedMentions": { "users" : []}});
+                log.info(`Uploaded to discord.\n`);
             }
             catch (error) {
                 try {
-                    console.log("Missing permissions.", error);
-                    await msg.reply("Failed to upload files. Check channel and bot permissions.")
+                    log.error("Missing permissions.", error);
+                    await msg.reply("Failed to upload files. Check channel and bot permissions.");
                 } catch {
-                    console.log("пхаха бля ктото запретил отправлять сообщения впринципе))")
+                    log.error("пхаха бля ктото запретил отправлять сообщения впринципе))");
                 }
             }
 
@@ -118,10 +124,10 @@ client.on(Events.InteractionCreate, interaction => {
                     embeds: [replyEmbed],
                 }
             )
-                .catch("help reply pososal");
+                .catch();
         });
         
     }
 });
 
-client.login(DEV_TOKEN);
+client.login(BOT_TOKEN);

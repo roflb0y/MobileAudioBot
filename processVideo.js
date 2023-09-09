@@ -2,6 +2,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import fs from 'fs';
 import { getFontsize } from './utils.js';
 import { insertProcessIdkLmaooo, updateVideosProcessed } from './database.js';
+import * as log from "./logger.js";
 
 async function processVideo(
     audioFilename,
@@ -33,9 +34,9 @@ async function processVideo(
             .save(`${audioFilename}.mp4`)
 
             .on('error', function(err, stdout, stderr) {
-                console.log('error: ' + err.message);
-                console.log('stdout: ' + stdout);
-                console.log('stderr: ' + stderr);
+                log.error('error: ' + err.message);
+                log.error('stdout: ' + stdout);
+                log.error('stderr: ' + stderr);
             })
             .on('end', () => {
                 insertProcessIdkLmaooo("", (Date.now() - start_time).toString());
@@ -52,11 +53,10 @@ export async function processVideos(files) {
 
         files.forEach((item) => {
             const worker = new Promise(async (resolve, reject) => {
-                if (item.duration >= 900) { fs.unlinkSync(item.filename); resolve() };
                 if (item.duration < 3) { item.duration = 3 };
 
                 const videoFilename = await processVideo(item.filename, item.title, item.duration);
-                console.log(`${item.title} processed`);
+                log.process(`${item.title} processed`);
                 resolve(videoFilename);
             });
             workers.push(worker);
