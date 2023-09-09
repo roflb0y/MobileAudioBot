@@ -39,3 +39,8 @@ export async function getAudioFiles(files) {
     })
     return f;
 };
+
+export function getLogDate() {
+    const date = new Date()
+    return `${date.toLocaleString()}`
+}
