@@ -1,2 +1,0 @@
-export const BOT_TOKEN = "MTEyMTU1MTg1ODIxMzg1NTM4Mw.G3g34u.6ohpQNUaBLN0mPLkdDsHIqDt5nfyjWHQbdnft8";
-export const DEV_TOKEN = "MTExNTMyNzY0NzMyNTYzMDQ3NQ.GBmiUQ.hIfcuy8Teuqll4g5m55Euxbq_LxGc0Z4gG_DNk";
