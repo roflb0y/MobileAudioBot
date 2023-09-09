@@ -1,7 +1,8 @@
 {
-    "help": "MobileAudioBot is a bot that makes it easy to listen to audiofiles from the mobile Discord app. An example of usage is shown in the image.\n\n[Terms of Service](https://mobileaudiobot.pw/tos)\n[Privacy Policy](https://mobileaudiobot.pw/privacy)",
+    "help": "MobileAudioBot is a bot that makes it easy to listen to audiofiles from the mobile Discord app. An example of usage is shown in the image.\n\n[Support me](https://boosty.to/roflboy)\n[Terms of Service](https://mobileaudiobot.pw/tos)\n[Privacy Policy](https://mobileaudiobot.pw/privacy)",
     "cant_upload": "Bot can't upload files in this channel. Check permissions.",
     "currently_processing": "These files are currently being processed",
     "long_files": ["Only files up to 15 minutes long are supported.", "Not all files will be converted."],
-    "upload_failed": "Failed to upload files. Check channel and bot permissions."
+    "upload_failed": "Failed to upload files. Check channel and bot permissions.",
+    "no_permission": "You have no permissions to do that"
 }

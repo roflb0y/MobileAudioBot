@@ -25,7 +25,8 @@ function updateRPC() {
     db.getProcessCount()
         .then((processCount) => {
             try {
-                let presence = `Processed ${processCount} files!`;
+                //let presence = `Processed ${processCount} files!`;
+                let presence = "/config ADDED";
                 if (!client.user.presence.activities[0] || presence !== client.user.presence.activities[0].name) {
                     presence = "/config ADDED";
                     client.user.setPresence({activities: [{ name: presence, type: ActivityType.Playing }], status: 'online'});
@@ -148,7 +149,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if(interaction.commandName === "config") {
         if(!interaction.member.permissionsIn(interaction.channel).has(PermissionsBitField.Flags.Administrator)) {
-            await interaction.reply("нет прав");
+            await interaction.reply({content: lang.no_permission, ephemeral: true});
             return;
         }
 
