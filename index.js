@@ -25,13 +25,9 @@ function updateRPC() {
     db.getProcessCount()
         .then((processCount) => {
             try {
-                //let presence = `Processed ${processCount} files!`;
-                let presence = "/config ADDED";
-                if (!client.user.presence.activities[0] || presence !== client.user.presence.activities[0].name) {
-                    presence = "/config ADDED";
-                    client.user.setPresence({activities: [{ name: presence, type: ActivityType.Playing }], status: 'online'});
-                    log.info(`Presence set to: ${presence}`);
-                }
+                let presence = `Processed ${processCount} files!`;
+                client.user.setPresence({activities: [{ name: presence, type: ActivityType.Playing }], status: 'online'});
+                log.info(`Presence set to: ${presence}`);
             }
             catch (error) {
                 log.error(`Failed to update presence. ${error}`);
@@ -47,7 +43,7 @@ client.on('ready', (c) => {
     log.info("Registered commands");
 
     updateRPC();
-    setInterval(() => updateRPC(), 60000);
+    setInterval(() => updateRPC(), 300000);
 });
 
 client.on('messageCreate', async (message) => {
