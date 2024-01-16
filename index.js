@@ -54,10 +54,10 @@ client.on('messageCreate', async (message) => {
     if (message.content.includes("@here") || message.content.includes("@everyone") || message.type == "REPLY") return false;
     if(!message.channel.permissionsFor(client.user).has(PermissionsBitField.Flags.SendMessages)) return false;
 
-    const autoconvert = await db.isAutoconversionEnabled(message.channel.id);
+    const autoconvertEnabled = await db.isAutoconversionEnabled(message.channel.id);
 
     //console.log(message);
-    if ((message.mentions.has(client.user.id) && message.reference) || (autoconvert && message.attachments.size > 0)) {
+    if ((message.mentions.has(client.user.id) && message.reference) || (autoconvertEnabled && message.attachments.size > 0)) {
         const lang = await db.getLang(message.guild.id);
 
         if(!message.channel.permissionsFor(client.user).has(PermissionsBitField.Flags.AttachFiles)) {
@@ -66,8 +66,15 @@ client.on('messageCreate', async (message) => {
         }
 
         let msg;
-        if (autoconvert && !message.mentions.has(client.user.id) && !message.reference) msg = message;
-        else msg = await message.fetchReference();
+        let msgReference;
+        let isAutoconversion = autoconvertEnabled;
+
+        if (message.reference) msgReference = await message.fetchReference();
+
+        if (autoconvertEnabled && message.attachments.size > 0) msg = message;
+        else if (autoconvertEnabled && msgReference && msgReference.attachments.size > 0) { msg = msgReference; isAutoconversion = false }
+
+        console.log(msg);
 
         if (processing_currently.includes(msg.id)) { 
             await message.reply(lang.currently_processing);
@@ -87,12 +94,15 @@ client.on('messageCreate', async (message) => {
             }
 
             if (filteredFiles.length === 0) {
-                log.info("All files are longer than 15 minutes or unsopported format so deleting\n");
+                log.info(`All files are longer than 15 minutes or unsopported format so deleting: ${Array.from(msg.attachments, (item) => item[1].name).join(" | ")}\n`);
                 let index = processing_currently.indexOf(msg.id);
                 if (index !== -1) {
                     processing_currently.splice(index, 1);
                 }
                 utils.deleteFiles(files.map((item) => item.filename));
+                if (!isAutoconversion) {
+                    await msg.reply(lang.unsupported_files);
+                }
                 return;
             }
             

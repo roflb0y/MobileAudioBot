@@ -4,5 +4,6 @@
     "currently_processing": "These files are currently being processed",
     "long_files": ["Only files up to 15 minutes long are supported.", "Not all files will be converted."],
     "upload_failed": "Failed to upload files. Check channel and bot permissions.",
-    "no_permission": "You have no permissions to do that"
+    "no_permission": "You have no permissions to do that",
+    "unsupported_files": "All files are longer than 15 minutes or unsupported format. Supported formats: mp3, wav, flac, ogg, m4a"
 }
