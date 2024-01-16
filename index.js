@@ -69,12 +69,13 @@ client.on('messageCreate', async (message) => {
         let msgReference;
         let isAutoconversion = autoconvertEnabled;
 
+        msg = message;
+
         if (message.reference) msgReference = await message.fetchReference();
 
         if (autoconvertEnabled && message.attachments.size > 0) msg = message;
-        else if (autoconvertEnabled && msgReference && msgReference.attachments.size > 0) { msg = msgReference; isAutoconversion = false }
-
-        console.log(msg);
+        else if (msgReference && msgReference.attachments.size > 0) { msg = msgReference; isAutoconversion = false }
+        else return;
 
         if (processing_currently.includes(msg.id)) { 
             await message.reply(lang.currently_processing);
@@ -101,7 +102,7 @@ client.on('messageCreate', async (message) => {
                 }
                 utils.deleteFiles(files.map((item) => item.filename));
                 if (!isAutoconversion) {
-                    await msg.reply(lang.unsupported_files);
+                    await message.reply(lang.unsupported_files);
                 }
                 return;
             }
